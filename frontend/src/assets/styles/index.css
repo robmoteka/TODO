@@ -1,0 +1,62 @@
+/* Podstawowe style dla całej aplikacji */
+body {
+  margin: 0;
+  font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Globalne style dla formularzy */
+.form-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Style dla komponentów zadań */
+.task-card {
+  margin-bottom: 16px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.task-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Style dla priorytetów zadań */
+.priority-high {
+  border-left: 4px solid #f44336;
+}
+
+.priority-medium {
+  border-left: 4px solid #ff9800;
+}
+
+.priority-low {
+  border-left: 4px solid #4caf50;
+}
+
+/* Animacje dla elementów UI */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Responsywność dla urządzeń mobilnych */
+@media (max-width: 600px) {
+  .form-container {
+    padding: 10px;
+  }
+}
