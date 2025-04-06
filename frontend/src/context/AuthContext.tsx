@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 // Typ dla danych użytkownika
 interface User {
@@ -9,6 +9,8 @@ interface User {
   rola: string;
   imie?: string;
   nazwisko?: string;
+  aktywny?: boolean;
+  ostatnieLogowanie?: Date;
 }
 
 // Typ dla kontekstu autoryzacji
@@ -18,10 +20,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
+  validationErrors: Record<string, string> | null;
   login: (email: string, haslo: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  updateUser: (userData: Partial<User>) => Promise<void>;
 }
 
 // Dane do rejestracji
@@ -40,10 +44,12 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   loading: true,
   error: null,
+  validationErrors: null,
   login: async () => {},
   register: async () => {},
   logout: () => {},
   clearError: () => {},
+  updateUser: async () => {},
 });
 
 /**
@@ -64,15 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Konfiguracja nagłówka autoryzacji dla wszystkich żądań
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['x-auth-token'] = token;
-    } else {
-      delete axios.defaults.headers.common['x-auth-token'];
-    }
-  }, [token]);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string> | null>(null);
 
   // Ładowanie użytkownika przy montowaniu komponentu
   useEffect(() => {
@@ -83,10 +81,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const res = await axios.get('/api/auth/user');
+        const res = await api.get('/auth/ja');
         setUser(res.data);
         setIsAuthenticated(true);
-      } catch (err) {
+      } catch (err: any) {
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
@@ -101,6 +99,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   /**
+   * Funkcja pomocnicza do obsługi błędów API
+   * @param err - Błąd z API
+   * @param defaultMessage - Domyślna wiadomość błędu
+   */
+  const handleApiError = (err: any, defaultMessage: string) => {
+    if (err.response) {
+      // Obsługa błędów walidacji
+      if (err.response.data.errors && Array.isArray(err.response.data.errors)) {
+        const errors: Record<string, string> = {};
+        err.response.data.errors.forEach((error: any) => {
+          errors[error.param] = error.msg;
+        });
+        setValidationErrors(errors);
+        setError('Proszę poprawić błędy w formularzu.');
+      } else {
+        // Obsługa innych błędów
+        setError(err.response.data.message || defaultMessage);
+      }
+    } else {
+      setError(defaultMessage);
+    }
+  };
+
+  /**
    * Logowanie użytkownika
    * @param email - Email użytkownika
    * @param haslo - Hasło użytkownika
@@ -108,7 +130,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, haslo: string) => {
     try {
       setLoading(true);
-      const res = await axios.post('/api/auth/login', { email, haslo });
+      setValidationErrors(null);
+      
+      const res = await api.post('/auth/logowanie', { email, haslo });
       
       localStorage.setItem('token', res.data.token);
       setToken(res.data.token);
@@ -116,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Błąd logowania. Spróbuj ponownie.');
+      handleApiError(err, 'Błąd logowania. Spróbuj ponownie.');
       localStorage.removeItem('token');
       setToken(null);
       setUser(null);
@@ -133,7 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (userData: RegisterData) => {
     try {
       setLoading(true);
-      const res = await axios.post('/api/auth/register', userData);
+      setValidationErrors(null);
+      
+      const res = await api.post('/auth/rejestracja', userData);
       
       localStorage.setItem('token', res.data.token);
       setToken(res.data.token);
@@ -141,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Błąd rejestracji. Spróbuj ponownie.');
+      handleApiError(err, 'Błąd rejestracji. Spróbuj ponownie.');
       localStorage.removeItem('token');
       setToken(null);
       setUser(null);
@@ -152,14 +178,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
+   * Aktualizacja danych użytkownika
+   * @param userData - Dane do aktualizacji
+   */
+  const updateUser = async (userData: Partial<User>) => {
+    if (!user || !token) {
+      setError('Musisz być zalogowany, aby zaktualizować swoje dane.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setValidationErrors(null);
+      
+      const res = await api.put(`/users/${user.id}`, userData);
+      
+      setUser({...user, ...res.data.user});
+      setError(null);
+    } catch (err: any) {
+      handleApiError(err, 'Błąd aktualizacji danych. Spróbuj ponownie.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * Wylogowanie użytkownika
    */
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
-    setError(null);
+  const logout = async () => {
+    try {
+      // Wywołanie endpointu wylogowania
+      await api.post('/auth/wyloguj');
+    } catch (err) {
+      console.error('Błąd wylogowania:', err);
+    } finally {
+      // Nawet jeśli wystąpi błąd, wylogowujemy lokalnie
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      setError(null);
+      setValidationErrors(null);
+    }
   };
 
   /**
@@ -167,6 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const clearError = () => {
     setError(null);
+    setValidationErrors(null);
   };
 
   // Wartość kontekstu do udostępnienia
@@ -176,10 +237,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated,
     loading,
     error,
+    validationErrors,
     login,
     register,
     logout,
     clearError,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

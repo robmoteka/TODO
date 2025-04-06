@@ -25,7 +25,7 @@ const Login: React.FC = () => {
   const [hasloError, setHasloError] = useState<string>('');
   
   // Pobieranie kontekstu autoryzacji
-  const { login, isAuthenticated, error, loading, clearError } = useAuth();
+  const { login, isAuthenticated, error, validationErrors, loading, clearError } = useAuth();
   const navigate = useNavigate();
   
   // Przekierowanie jeśli użytkownik jest już zalogowany
@@ -34,6 +34,18 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
+  
+  // Aktualizacja błędów walidacji z API
+  useEffect(() => {
+    if (validationErrors) {
+      if (validationErrors.email) {
+        setEmailError(validationErrors.email);
+      }
+      if (validationErrors.haslo) {
+        setHasloError(validationErrors.haslo);
+      }
+    }
+  }, [validationErrors]);
   
   // Walidacja formularza
   const waliduj_formularz = (): boolean => {

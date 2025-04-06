@@ -38,7 +38,7 @@ const Register: React.FC = () => {
   });
   
   // Pobieranie kontekstu autoryzacji
-  const { register, isAuthenticated, error, loading, clearError } = useAuth();
+  const { register, isAuthenticated, error, validationErrors, loading, clearError } = useAuth();
   const navigate = useNavigate();
   
   // Przekierowanie jeśli użytkownik jest już zalogowany
@@ -47,6 +47,25 @@ const Register: React.FC = () => {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
+  
+  // Aktualizacja błędów walidacji z API
+  useEffect(() => {
+    if (validationErrors) {
+      const newErrors = { ...formErrors };
+      
+      if (validationErrors.nazwa) {
+        newErrors.nazwa = validationErrors.nazwa;
+      }
+      if (validationErrors.email) {
+        newErrors.email = validationErrors.email;
+      }
+      if (validationErrors.haslo) {
+        newErrors.haslo = validationErrors.haslo;
+      }
+      
+      setFormErrors(newErrors);
+    }
+  }, [validationErrors]);
   
   // Obsługa zmiany pól formularza
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

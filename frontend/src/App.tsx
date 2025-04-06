@@ -3,13 +3,18 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { plPL } from '@mui/material/locale';
 import { AuthProvider } from './context/AuthContext';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { pl } from 'date-fns/locale';
 
 // Importy stron
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import TaskList from './pages/TaskList';
-import TaskDetail from './pages/TaskDetail';
+import TaskDetails from './pages/TaskDetails';
+import CreateTask from './pages/CreateTask';
+import EditTask from './pages/EditTask';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
@@ -78,25 +83,33 @@ const App: React.FC = () => {
   return (
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
-      <AuthProvider>
-        <Routes>
-          {/* Ścieżki publiczne */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          {/* Ścieżki chronione */}
-          <Route path="/" element={<ProtectedRoute><Layout toggleDarkMode={toggleDarkMode} isDarkMode={darkMode} /></ProtectedRoute>}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="tasks" element={<TaskList />} />
-            <Route path="tasks/:id" element={<TaskDetail />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
-          
-          {/* Obsługa nieznalezionej strony */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AuthProvider>
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={pl}>
+        <AuthProvider>
+          <Routes>
+            {/* Ścieżki publiczne */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Ścieżki chronione */}
+            <Route path="/" element={<ProtectedRoute><Layout toggleDarkMode={toggleDarkMode} isDarkMode={darkMode} /></ProtectedRoute>}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              
+              {/* Ścieżki zadań */}
+              <Route path="tasks" element={<TaskList />} />
+              <Route path="tasks/create" element={<CreateTask />} />
+              <Route path="tasks/:id" element={<TaskDetails />} />
+              <Route path="tasks/:id/edit" element={<EditTask />} />
+              
+              {/* Profil użytkownika */}
+              <Route path="profile" element={<Profile />} />
+            </Route>
+            
+            {/* Obsługa nieznalezionej strony */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
+      </LocalizationProvider>
     </ThemeProvider>
   );
 };

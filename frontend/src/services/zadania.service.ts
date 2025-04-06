@@ -1,5 +1,72 @@
 import api from './api';
-import { Zadanie, FiltryZadan, OdpowiedzPaginacja, ProponowaneRozwiazanie, Uwaga, Wykonawca } from '../types';
+import { 
+  Zadanie, 
+  ProponowaneRozwiazanie, 
+  Uwaga, 
+  Wykonawca, 
+  PaginatedResponse,
+  ValidationErrors
+} from '../types';
+
+/**
+ * Klasa błędu API z obsługą błędów walidacji
+ */
+export class BladAPI extends Error {
+  status: number;
+  bledyWalidacji?: ValidationErrors;
+  
+  constructor(message: string, status: number, bledyWalidacji?: ValidationErrors) {
+    super(message);
+    this.name = 'BladAPI';
+    this.status = status;
+    this.bledyWalidacji = bledyWalidacji;
+  }
+}
+
+/**
+ * Funkcja pomocnicza do obsługi błędów API
+ * @param err - Błąd z API
+ * @param domyslnaWiadomosc - Domyślna wiadomość błędu
+ */
+const obsluz_blad_api = (err: any, domyslnaWiadomosc: string): never => {
+  if (err.response) {
+    // Obsługa błędów walidacji
+    if (err.response.data.errors) {
+      // Sprawdzenie czy errors jest tablicą (format express-validator)
+      if (Array.isArray(err.response.data.errors)) {
+        const bledyWalidacji: ValidationErrors = {};
+        err.response.data.errors.forEach((blad: any) => {
+          bledyWalidacji[blad.param] = blad.msg;
+        });
+        throw new BladAPI(
+          err.response.data.message || 'Błędy walidacji formularza',
+          err.response.status,
+          bledyWalidacji
+        );
+      } 
+      // Sprawdzenie czy errors jest obiektem (format własny)
+      else if (typeof err.response.data.errors === 'object') {
+        throw new BladAPI(
+          err.response.data.message || 'Błędy walidacji formularza',
+          err.response.status,
+          err.response.data.errors
+        );
+      }
+    }
+    
+    // Obsługa innych błędów
+    throw new BladAPI(
+      err.response.data.message || domyslnaWiadomosc,
+      err.response.status
+    );
+  } else if (err.request) {
+    // Błąd braku odpowiedzi z serwera
+    throw new BladAPI('Brak odpowiedzi z serwera. Sprawdź połączenie internetowe.', 0);
+  } else {
+    // Inne błędy
+    throw new BladAPI(err.message || domyslnaWiadomosc, 500);
+  }
+};
 
 /**
  * Serwis do obsługi zadań
@@ -8,12 +75,16 @@ import { Zadanie, FiltryZadan, OdpowiedzPaginacja, ProponowaneRozwiazanie, Uwaga
 class ZadaniaService {
   /**
    * Pobieranie listy zadań z możliwością filtrowania i paginacji
-   * @param filtry - Parametry filtrowania i sortowania
+   * @param params - Parametry filtrowania i sortowania
    * @returns Lista zadań z informacjami o paginacji
    */
-  async pobierz_zadania(filtry: FiltryZadan = {}): Promise<OdpowiedzPaginacja<Zadanie>> {
-    const response = await api.get('/tasks', { params: filtry });
-    return response.data;
+  async pobierz_zadania(params: Record<string, any> = {}): Promise<PaginatedResponse<Zadanie>> {
+    try {
+      const response = await api.get('/tasks', { params });
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, 'Błąd podczas pobierania zadań');
+    }
   }
 
   /**
@@ -22,8 +93,12 @@ class ZadaniaService {
    * @returns Szczegóły zadania
    */
   async pobierz_zadanie(id: string): Promise<Zadanie> {
-    const response = await api.get(`/tasks/${id}`);
-    return response.data;
+    try {
+      const response = await api.get(`/tasks/${id}`);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas pobierania zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -32,8 +107,12 @@ class ZadaniaService {
    * @returns Utworzone zadanie
    */
   async utworz_zadanie(zadanie: Partial<Zadanie>): Promise<Zadanie> {
-    const response = await api.post('/tasks', zadanie);
-    return response.data;
+    try {
+      const response = await api.post('/tasks', zadanie);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, 'Błąd podczas tworzenia zadania');
+    }
   }
 
   /**
@@ -43,8 +122,12 @@ class ZadaniaService {
    * @returns Zaktualizowane zadanie
    */
   async aktualizuj_zadanie(id: string, zadanie: Partial<Zadanie>): Promise<Zadanie> {
-    const response = await api.put(`/tasks/${id}`, zadanie);
-    return response.data;
+    try {
+      const response = await api.put(`/tasks/${id}`, zadanie);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas aktualizacji zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -53,8 +136,12 @@ class ZadaniaService {
    * @returns Komunikat o powodzeniu
    */
   async usun_zadanie(id: string): Promise<{ message: string }> {
-    const response = await api.delete(`/tasks/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/tasks/${id}`);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas usuwania zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -64,8 +151,12 @@ class ZadaniaService {
    * @returns Zaktualizowane zadanie
    */
   async dodaj_rozwiazanie(id: string, rozwiazanie: Partial<ProponowaneRozwiazanie>): Promise<Zadanie> {
-    const response = await api.post(`/tasks/${id}/rozwiazania`, rozwiazanie);
-    return response.data;
+    try {
+      const response = await api.post(`/tasks/${id}/solutions`, rozwiazanie);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas dodawania rozwiązania do zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -75,8 +166,12 @@ class ZadaniaService {
    * @returns Zaktualizowane zadanie
    */
   async dodaj_uwage(id: string, uwaga: Partial<Uwaga>): Promise<Zadanie> {
-    const response = await api.post(`/tasks/${id}/uwagi`, uwaga);
-    return response.data;
+    try {
+      const response = await api.post(`/tasks/${id}/comments`, uwaga);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas dodawania uwagi do zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -87,8 +182,15 @@ class ZadaniaService {
    * @returns Zaktualizowane zadanie
    */
   async aktualizuj_status_realizacji(id: string, status: string, postep: number): Promise<Zadanie> {
-    const response = await api.put(`/tasks/${id}/proces-realizacji`, { statusRealizacji: status, postepRealizacji: postep });
-    return response.data;
+    try {
+      const response = await api.put(`/tasks/${id}/process`, { 
+        statusRealizacji: status, 
+        postepRealizacji: postep 
+      });
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas aktualizacji statusu realizacji zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -98,8 +200,12 @@ class ZadaniaService {
    * @returns Zaktualizowane zadanie
    */
   async dodaj_wykonawce(id: string, wykonawca: Partial<Wykonawca>): Promise<Zadanie> {
-    const response = await api.post(`/tasks/${id}/wykonawcy`, wykonawca);
-    return response.data;
+    try {
+      const response = await api.post(`/tasks/${id}/assignees`, wykonawca);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas dodawania wykonawcy do zadania o ID ${id}`);
+    }
   }
 
   /**
@@ -108,32 +214,59 @@ class ZadaniaService {
    * @param idWykonawcy - Identyfikator wykonawcy
    * @returns Zaktualizowane zadanie
    */
-  async usun_wykonawce(idZadania: string, idWykonawcy: string): Promise<Zadanie> {
-    const response = await api.delete(`/tasks/${idZadania}/wykonawcy/${idWykonawcy}`);
-    return response.data;
+  async usun_wykonawce(idZadania: string, idWykonawcy: number): Promise<Zadanie> {
+    try {
+      const response = await api.delete(`/tasks/${idZadania}/assignees/${idWykonawcy}`);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas usuwania wykonawcy z zadania o ID ${idZadania}`);
+    }
   }
-
+  
   /**
-   * Ustawienie terminu realizacji zadania
-   * @param id - Identyfikator zadania
-   * @param termin - Data terminu realizacji
-   * @returns Zaktualizowane zadanie
+   * Pobieranie statystyk zadań
+   * @returns Statystyki zadań
    */
-  async ustaw_termin_realizacji(id: string, termin: string): Promise<Zadanie> {
-    const response = await api.put(`/tasks/${id}/termin-realizacji`, { terminRealizacji: termin });
-    return response.data;
+  async pobierz_statystyki(): Promise<any> {
+    try {
+      const response = await api.get('/tasks/stats');
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, 'Błąd podczas pobierania statystyk zadań');
+    }
   }
-
+  
   /**
-   * Dodawanie reakcji do proponowanego rozwiązania
+   * Dodawanie reakcji do rozwiązania
    * @param idZadania - Identyfikator zadania
    * @param idRozwiazania - Identyfikator rozwiązania
-   * @param rodzaj - Rodzaj reakcji
+   * @param rodzajReakcji - Rodzaj reakcji (np. "like", "dislike")
    * @returns Zaktualizowane zadanie
    */
-  async dodaj_reakcje(idZadania: string, idRozwiazania: string, rodzaj: string): Promise<Zadanie> {
-    const response = await api.post(`/tasks/${idZadania}/rozwiazania/${idRozwiazania}/reakcje`, { rodzaj });
-    return response.data;
+  async dodaj_reakcje(idZadania: string, idRozwiazania: number, rodzajReakcji: string): Promise<Zadanie> {
+    try {
+      const response = await api.post(`/tasks/${idZadania}/solutions/${idRozwiazania}/reactions`, {
+        rodzaj: rodzajReakcji
+      });
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas dodawania reakcji do rozwiązania`);
+    }
+  }
+  
+  /**
+   * Oznaczanie rozwiązania jako najlepszego
+   * @param idZadania - Identyfikator zadania
+   * @param idRozwiazania - Identyfikator rozwiązania
+   * @returns Zaktualizowane zadanie
+   */
+  async oznacz_najlepsze_rozwiazanie(idZadania: string, idRozwiazania: number): Promise<Zadanie> {
+    try {
+      const response = await api.put(`/tasks/${idZadania}/solutions/${idRozwiazania}/best`);
+      return response.data;
+    } catch (err: any) {
+      return obsluz_blad_api(err, `Błąd podczas oznaczania najlepszego rozwiązania`);
+    }
   }
 }
 
