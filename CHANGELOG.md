@@ -32,6 +32,31 @@ a projekt stosuje [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Brakujące pliki w katalogu public dla aplikacji React
 - Poprawione zarządzanie uprawnieniami w API
 
+## [0.2.0] - 2025-04-06
+
+### Dodane
+- Pełna implementacja CRUD dla zadań (tworzenie, odczyt, aktualizacja, usuwanie)
+- Komponenty do zarządzania zadaniami:
+  - Formularz zadań (TaskForm) z obsługą walidacji
+  - Strona tworzenia nowego zadania (CreateTask)
+  - Strona edycji zadania (EditTask)
+  - Strona szczegółów zadania (TaskDetails)
+  - Strona listy zadań (TaskList) z filtrowaniem i wyszukiwaniem
+- Serwis zadań (zadania.service.ts) z obsługą wszystkich operacji na zadaniach
+- Definicje typów TypeScript dla zadań i powiązanych encji
+- Obsługa błędów walidacji z backendu
+- Integracja z API dla wszystkich operacji na zadaniach
+- Obsługa dat w języku polskim (date-fns z locale pl)
+
+### Zmienione
+- Ulepszenie obsługi błędów API w serwisie zadań
+- Rozszerzenie typów dla lepszej integracji z backendem
+- Aktualizacja routingu aplikacji dla nowych stron zadań
+
+### Naprawione
+- Poprawione zarządzanie stanem formularzy
+- Poprawiona obsługa błędów walidacji z różnych formatów API
+
 ## [0.1.0] - 2025-04-06
 
 ### Dodane
